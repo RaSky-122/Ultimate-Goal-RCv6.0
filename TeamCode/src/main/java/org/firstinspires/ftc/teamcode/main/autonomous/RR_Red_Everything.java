@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.main.autonomous;
 
+import android.graphics.Camera;
+
 import com.acmerobotics.roadrunner.drive.MecanumDrive;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.acmerobotics.roadrunner.geometry.Vector2d;
@@ -17,15 +19,38 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import java.math.*;
 
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @Autonomous(name = "RR Auton", group = "main")
 public class RR_Red_Everything extends LinearOpMode {
+
+    //~~~~~~~~~~~~~~~~~~~ W E B C A M ~~~~~~~~~~~~~~~~~~~~~
+
+    private static final String VUFORIA_KEY =
+            "Ab7Zg4v/////AAABmZKeB/V4p0DYmJFYkJRpaeou+GcJbvvo75+A7Spuy3TFuR7rC0nOwuzdeXJ7XvtxlPAkZYwkdO/EW6CU6mfG8AEqTsAxy//INcvlqdvdnkZeWG3qKsllZorOFWuKfCcrIM3TyA7iOsG2gl0jPG7+PF2S6kpYhHhJ4h1B+9l1B/dx/pQi96ktSn5L8Df3/sAn9WIPlcmRtcByc7N1/cA7liBfwaeiY+HVJZbtuJrxUg+LRJumxU6xjh0Cgq+OcyvXeMXA15i7i/5js/jFa+AqV8jIDNGZpdOyVlgrpSV+/bZsLcnFFY9GSIgYXHbLpFtkv6tQpUd/4kamH3qyxvFRhh5w9uXPVa1Q0xMiLQhUxiuD";
+
+    private VuforiaLocalizer vuforia;
+
+    private TFObjectDetector tfod;
+
+    private Camera camera = new Camera();
+
+    private static final String TFOD_MODEL_ASSET = "UltimateGoal.tflite";
+    private static final String LABEL_FIRST_ELEMENT = "Quad";
+    private static final String LABEL_SECOND_ELEMENT = "Single";
+
+    //~~~~~~~~~~~~~~~~~~~ W E B C A M ~~~~~~~~~~~~~~~~~~~~~
 
     ElapsedTime runTime = new ElapsedTime();
 
@@ -51,6 +76,16 @@ public class RR_Red_Everything extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
+
+        //~~~~~~~~~~~~~~~~~~~ W E B C A M ~~~~~~~~~~~~~~~~~~~~~
+
+        new Init().vuforia();
+        new Init().tfod();
+
+        if(tfod != null)
+            tfod.activate();
+
+        //~~~~~~~~~~~~~~~~~~~ W E B C A M ~~~~~~~~~~~~~~~~~~~~~
 
         turretMotor = hardwareMap.dcMotor.get(TURRET_MOTOR);
         turretMotor.setPower(0);
@@ -87,27 +122,64 @@ public class RR_Red_Everything extends LinearOpMode {
                 .build();
         */
 
-        traj.add(drive.trajectoryBuilder(new Pose2d())
+        /*traj.add(drive.trajectoryBuilder(new Pose2d())
                 .splineToConstantHeading(new Vector2d(27, 10), 0)
                 .splineToConstantHeading(new Vector2d(58, 0), 0)
                 .build());
+        */
 
-        traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                .forward(30)
-                .build());
+        traj.add()
+
 
         waitForStart();
+
+        int nrDiscs = discArrangement();
 
         if (isStopRequested()) return;
 
         drive.followTrajectory(traj.get(0));
-
         turretLocalization(true);
+        launcherRun(1755, true);
 
-        launcherRun(false);
+        loadRing(false);
+        loadRing(false);
+        loadRing(false);
 
-        drive.followTrajectory(traj.get(1));
         sleep(2000);
+    }
+
+    class Init {
+        private void vuforia() {
+            VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
+            parameters.vuforiaLicenseKey = VUFORIA_KEY;
+            parameters.cameraName = hardwareMap.get(WebcamName.class, "Webcam 1");
+
+            vuforia = ClassFactory.getInstance().createVuforia(parameters);
+        }
+
+        private void tfod() {
+            int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
+                    "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+            TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
+            tfodParameters.minResultConfidence = (float)0.5;
+            tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
+            tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_FIRST_ELEMENT, LABEL_SECOND_ELEMENT);
+        }
+    }
+
+    private int discArrangement(){
+        List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
+
+        if(updatedRecognitions != null){
+            for(Recognition recognition : updatedRecognitions){
+                if(recognition.getLabel().equals(LABEL_SECOND_ELEMENT))
+                    return 1;
+                else if(recognition.getLabel().equals(LABEL_FIRST_ELEMENT))
+                    return 4;
+            }
+        }
+        return 0;
     }
 
     public void turretLocalization(boolean getLogs){
@@ -157,19 +229,10 @@ public class RR_Red_Everything extends LinearOpMode {
         turretMotor.setPower(0);
     }
 
-    public void launcherRun(boolean getLogs){
+    public void launcherRun(double velocity, boolean getLogs){
 
-        launcherWheelMotor.setVelocity(1800);
-        sleep(600);
-
-        loadRing(false);
-        loadRing(false);
-        loadRing(false);
-        loadRing(false);
-        loadRing(false);
-
-        sleep(500);
-        launcherWheelMotor.setPower(0);
+        launcherWheelMotor.setVelocity(velocity); // 1755-ish? for just before the discs
+        sleep(1500);
 
         if(getLogs){
             telemetry.addData("Launcher velocity ", launcherWheelMotor.getVelocity());
@@ -179,11 +242,11 @@ public class RR_Red_Everything extends LinearOpMode {
     public void loadRing(boolean getLogs){
 
         runTime.reset();
-        loadServo.setPosition(25 / 180.0);
-        sleep(400);
+        loadServo.setPosition(23 / 180.0);
+        sleep(500);
 
         loadServo.setPosition(INITIAL_ANGLE/180.0);
-        sleep(200);
+        sleep(450);
 
         if(getLogs){
             telemetry.addData("Load servo position ", loadServo.getPosition());

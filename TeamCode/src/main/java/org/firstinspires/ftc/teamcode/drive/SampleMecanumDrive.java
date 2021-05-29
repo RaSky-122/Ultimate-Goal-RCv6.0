@@ -66,7 +66,7 @@ import static org.firstinspires.ftc.teamcode.drive.DriveConstants.kV;
 @Config
 public class SampleMecanumDrive extends MecanumDrive {
     public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(2.5, 0, 0);
-    public static PIDCoefficients HEADING_PID = new PIDCoefficients(8, 0, 0);
+    public static PIDCoefficients HEADING_PID = new PIDCoefficients(2, 0, 2);
 
     public static double LATERAL_MULTIPLIER = 1;
 
@@ -161,6 +161,8 @@ public class SampleMecanumDrive extends MecanumDrive {
         if (RUN_USING_ENCODER) {
             setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         }
+        else if(!RUN_USING_ENCODER)
+            setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
@@ -173,6 +175,7 @@ public class SampleMecanumDrive extends MecanumDrive {
         leftRear.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // TODO: if desired, use setLocalizer() to change the localization method
+        setLocalizer(new TwoWheelTrackingLocalizer(hardwareMap, this));
         // for instance, setLocalizer(new ThreeTrackingWheelLocalizer(...));
     }
 

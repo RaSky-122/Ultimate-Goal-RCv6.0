@@ -6,15 +6,20 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp(name = "Single Motor Test", group = "test")
 
 public class SingleMotor extends LinearOpMode {
 
     private DcMotorEx motor;
+    private Servo servo;
 
     @Override
     public void runOpMode() throws InterruptedException{
+
+//        servo.setDirection();
+//        servo.setPosition();
 
         motor = hardwareMap.get(DcMotorEx.class, "motor");
 

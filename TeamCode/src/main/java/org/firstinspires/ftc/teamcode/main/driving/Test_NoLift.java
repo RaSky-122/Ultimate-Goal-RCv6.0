@@ -1,7 +1,8 @@
 package org.firstinspires.ftc.teamcode.main.driving;
 
+import android.graphics.Camera;
+
 import com.acmerobotics.roadrunner.geometry.Pose2d;
-import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -10,10 +11,11 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
-import org.firstinspires.ftc.teamcode.libraries.hardware.Gyroscope;
-import org.firstinspires.ftc.teamcode.libraries.hardware.WheelMotors;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 
 import java.util.ArrayList;
@@ -23,47 +25,58 @@ import java.util.List;
 
 public class Test_NoLift extends LinearOpMode {
 
-    int viteza = 0;
+    /*int viteza = 0;
     double power = 0.8;
     double halfPower = 0.5;
+    */
 
     ElapsedTime runTime = new ElapsedTime();
 
     static final double INITIAL_ANGLE = 45;
-    static double dist;
     static final String COLLECTOR_MOTOR = "collector";
     static final String LAUNCHER_MOTOR = "launcher";
     static final String TURRET_MOTOR = "turret";
-    static final String LIFT_MOTOR = "lift";
     static final String LOADING_SERVO = "loader";
 
     static final double TICKS_PER_DEGREE = 9.5;
     static final int MAX_DISTANCE = 124; //in inches
     static final int MAX_VELOCITY = 1800;
 
+    static final int LOWER_LIMIT = -530;
+    static final int UPPER_LIMIT = 330;
+
     private GeneralInitImpl init = new GeneralInitImpl();
+    private Robot robot = new Robot();
 
     private DcMotor frontLeft, frontRight, backLeft, backRight;
     List<DcMotor> driveMotors = new ArrayList<>();
 
-    private DcMotor turretMotor, collectorMotor;
-    private double turretAngle;
+    private DcMotor turretMotor;
     //Turret motor hard limits: -572 , 370
-    private DcMotorEx launcherWheelMotor;
-
+    private DcMotorEx launcherWheelMotor, collectorMotor;
+    private DcMotor armWobble;
+    private Servo armServo;
     private Servo loadServo;
-
-    //private BNO055IMU imu;
 
     private SampleMecanumDrive drive;
 
     @Override
     public void runOpMode() throws InterruptedException {
 
+
+
         drive = new SampleMecanumDrive(hardwareMap);
-        drive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         //imu = new Gyroscope().initIMU(hardwareMap);
+
+        armWobble = hardwareMap.dcMotor.get("arm");
+        armWobble.setPower(0);
+        armWobble.setTargetPosition(0);
+        armWobble.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        armWobble.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armWobble.setDirection(DcMotorSimple.Direction.REVERSE);
+        armWobble.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         turretMotor = hardwareMap.dcMotor.get(TURRET_MOTOR);
         turretMotor.setPower(0);
@@ -81,16 +94,24 @@ public class Test_NoLift extends LinearOpMode {
                 DcMotor.RunMode.RUN_USING_ENCODER);
         launcherWheelMotor.setVelocityPIDFCoefficients(700, 0.7,130, 5);
 
+
+
+        armServo = init.initServo(hardwareMap,
+                "arm",
+                Servo.Direction.FORWARD,
+                0.5, 1);
+        armServo.setPosition(1);
+
         loadServo = init.initServo(hardwareMap,
                 LOADING_SERVO,
                 Servo.Direction.FORWARD);
         loadServo.setPosition(INITIAL_ANGLE/180.0);
 
-        collectorMotor = init.initMotor(hardwareMap,
+        collectorMotor = init.initExMotor(hardwareMap,
                 COLLECTOR_MOTOR,
                 DcMotor.ZeroPowerBehavior.BRAKE,
                 DcMotorSimple.Direction.REVERSE,
-                DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                DcMotor.RunMode.RUN_USING_ENCODER);
 
         /*driveMotors = new WheelMotors().initWheels(hardwareMap,
                 DcMotor.ZeroPowerBehavior.BRAKE,
@@ -123,148 +144,234 @@ public class Test_NoLift extends LinearOpMode {
             drive.update();
 
             //smoothMovement(false); /* uses gamepad1: left stick, right stick */
-            turretLocalization(true); /* uses gamepad1: dpad_up */
-            launcherRun(true); /* uses gamepad1: right trigger */
-            loadRing(false); /* uses gamepad1: x */
-            collectorRun(false); /* uses gamepad1: a */
+            robot.localization();
+            robot.turretLocalization(true); /* uses gamepad1: dpad_up */
+            robot.launcherRun(true); /* uses gamepad1: right trigger */
+            robot.loadRing(false); /* uses gamepad1: x */
+            robot.collectorRun(false); /* uses gamepad1: a */
+            robot.arm();
+            telemetry.addData("","");
+            telemetry.addData("","");
+            telemetry.addData("Wheel velocities", drive.getWheelVelocities());
 
             telemetry.update();
 
         }
     }
 
-    private boolean turretOn = false;
 
-    public void turretLocalization(boolean getLogs){
-        double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
-        double x2 = 123, y2 = -15;
-        turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 110;
-        double log = turretAngle;
-        double heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
 
-        if (heading<=180)
-            turretAngle -= heading*1.2;
-        else
-            turretAngle += (360-heading)*1.2;
-        log = turretAngle - log;
+    class Robot {
 
-        dist = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+        private boolean turretOn = false;
+        private double dist;
+        private double velocity;
 
-        if(gamepad1.dpad_up){
-            turretOn = !turretOn;
-            sleep(200);
+        private double log;
+        private double heading;
+        private double turretAngle;
+
+        boolean launcherOn = false;
+
+        public void localization(){
+            double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
+            double x2 = 123, y2 = -15;
+            turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 110;
+            log = turretAngle;
+            heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
+
+            if (heading<=180)
+                turretAngle -= heading*1.16;
+            else
+                turretAngle += (360-heading)*1.16;
+            log = turretAngle - log;
+
+            dist = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
         }
 
-        if(turretOn) {
-            if(turretAngle*TICKS_PER_DEGREE > 350)
-                turretMotor.setTargetPosition(340);
-            else if(turretAngle*TICKS_PER_DEGREE < -550)
-                turretMotor.setTargetPosition(-540);
-            else turretMotor.setTargetPosition((int)(turretAngle*TICKS_PER_DEGREE));
-            turretMotor.setPower(0.5);
-        }
-        /*else if(!gamepad1.dpad_up && turretMotor.getCurrentPosition() >= 360) {
-            turretMotor.setTargetPosition(360);
-            turretMotor.setPower(0.3);
-        }
-        else if(!gamepad1.dpad_up && turretMotor.getCurrentPosition() <= -560){
-            turretMotor.setTargetPosition(-560);
-            turretMotor.setPower(0.3);
-        }*/
-        else if(!turretOn) {
-            turretMotor.setPower(0);
-        }
+        boolean armIsOn = false;
+        boolean servoIsOn = false;
+        int armPos = 220;
+        public void arm() {
+            if ((heading >= 160 && heading <= 200) && drive.getPoseEstimate().getX()<=20)
+                armPos = 90;
+            else
+                armPos = 210;
 
-        if(turretMotor.getCurrentPosition() >= 400 || turretMotor.getCurrentPosition() <= -600) {
-            turretMotor.setPower(0);
-        }
+            if (gamepad1.b && armWobble.getCurrentPosition() <= 50) {
+                armWobble.setTargetPosition(armPos);
+                armWobble.setPower(0.75);
+                sleep(200);
 
-        if(gamepad2.x){
-            turretMotor.setTargetPosition(0);
-            turretMotor.setPower(0.3);
-            turretOn = false;
-            sleep(200);
-        }
+            } else if (gamepad1.b && armWobble.getCurrentPosition() > 50) {
+                armWobble.setTargetPosition(20);
+                armWobble.setPower(0.75);
+                sleep(200);
+            }
 
-        if(!turretMotor.isBusy())
-            turretMotor.setPower(0);
+            if (gamepad1.left_bumper && !servoIsOn) {
+                armServo.setPosition(0);
+                servoIsOn = true;
+                sleep(200);
+            }
+            else if (gamepad1.left_bumper && servoIsOn)
+            {
+                armServo.setPosition(1);
+                servoIsOn = false;
+                sleep(200);
+            }
 
-        if(getLogs) {
-            telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "");
-            telemetry.addData("Target position: ", turretMotor.getTargetPosition());
-            telemetry.addData("Current position: ", turretMotor.getCurrentPosition());
-            telemetry.addData("Angle to net: ", turretAngle);
-            telemetry.addData("Turret motor power: ", turretMotor.getPower());
-            telemetry.addData("Target with heading: ", log);
-            telemetry.addData("Distance to net: ", dist);
-            telemetry.addData("Pose X: ", drive.getPoseEstimate().getX());
-            telemetry.addData("Pose Y: ", drive.getPoseEstimate().getY());
-            telemetry.addData("Heading 2: ", heading);
-            telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "end ");
-        }
-    }
 
-    boolean isRunning = false;
 
-    public void launcherRun(boolean getLogs){
+//            if (armWobble.getCurrentPosition()>140 && gamepad1.left_bumper && armServo.getPosition()!=0){
+//                armServo.setPosition(0);
+//                sleep(200);
+//            }
+//
+//            else if (armWobble.getCurrentPosition()>140 && gamepad1.left_bumper && armServo.getPosition()!=1) {
+//                armServo.setPosition(1);
+//                sleep(200);
+//            }
 
-        double velocity;
-        if (dist<=93)
-            velocity = 1780-(dist-63.5)*3.75;
-        else
-            velocity = 1700;
-        telemetry.addData("Target Velocity:", velocity);
 
-        if(gamepad1.right_trigger >= 0.7) {
-            isRunning = !isRunning;
-            sleep(200);
+            if (!armWobble.isBusy())
+                armWobble.setPower(0);
+
+            telemetry.addData("", "");
+            telemetry.addData("~~~~~~~~~~~~ Arm logs ~~~~~~~~~~~~ ", "");
+            telemetry.addData("Arm position: ", armWobble.getCurrentPosition());
+            telemetry.addData("Arm target: ", armWobble.getTargetPosition());
+            telemetry.addData("Is button pressed: ", gamepad1.b);
+            telemetry.addData("Is arm on: ", armIsOn);
+            telemetry.addData("Is arm busy: ", armWobble.isBusy());
+            telemetry.addData("Target Pos: ", armPos);
+            telemetry.addData("~~~~~~~~~~~~ Arm logs ~~~~~~~~~~~~ ", "");
+
         }
 
-        if(isRunning){
-            launcherWheelMotor.setVelocity(velocity);
-        }
-        else if(!isRunning){
-            launcherWheelMotor.setVelocity(0);
+        public void turretLocalization(boolean getLogs){
+
+            if(gamepad1.dpad_up){
+                turretOn = !turretOn;
+                sleep(200);
+            }
+
+            if(turretOn) {
+                if(turretAngle*TICKS_PER_DEGREE > UPPER_LIMIT)
+                    turretMotor.setTargetPosition(UPPER_LIMIT - 10);
+                else if(turretAngle*TICKS_PER_DEGREE < LOWER_LIMIT)
+                    turretMotor.setTargetPosition(LOWER_LIMIT + 10);
+                else turretMotor.setTargetPosition((int)(turretAngle*TICKS_PER_DEGREE));
+                turretMotor.setPower(0.5);
+            }
+
+            else if(!turretOn) {
+                turretMotor.setPower(0);
+            }
+
+            if(turretMotor.getCurrentPosition() >= 400 || turretMotor.getCurrentPosition() <= -600) {
+                turretMotor.setPower(0);
+            }
+
+            /*if(gamepad2.x){
+                turretMotor.setTargetPosition(0);
+                turretMotor.setPower(0.3);
+                turretOn = false;
+                sleep(200);
+            }*/
+
+            if(!turretMotor.isBusy())
+                turretMotor.setPower(0);
+
+            if(getLogs) {
+                telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "");
+                telemetry.addData("Target position: ", turretMotor.getTargetPosition());
+                telemetry.addData("Current position: ", turretMotor.getCurrentPosition());
+                telemetry.addData("Angle to net: ", turretAngle);
+                telemetry.addData("Turret motor power: ", turretMotor.getPower());
+                telemetry.addData("Target with heading: ", log);
+                telemetry.addData("Distance to net: ", dist);
+                telemetry.addData("Pose X: ", drive.getPoseEstimate().getX());
+                telemetry.addData("Pose Y: ", drive.getPoseEstimate().getY());
+                telemetry.addData("Heading 2: ", heading);
+                telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "end ");
+            }
         }
 
-        if(getLogs){
-            telemetry.addData("Launcher velocity ", launcherWheelMotor.getVelocity());
-        }
-    }
+        public void launcherRun(boolean getLogs){
+            if (dist<=93)
+                velocity = 1780-((dist-63.5)*3.50);
+            else
+                velocity = 1700+((dist-93)*3.50);
+            telemetry.addData("Target Velocity:", velocity);
 
-    public void loadRing(boolean getLogs){
+            if(gamepad1.right_trigger >= 0.7) {
+                launcherOn = !launcherOn;
+                sleep(200);
+            }
 
-        if(gamepad1.x && loadServo.getPosition() > 40/180.0){
-            runTime.reset();
-            loadServo.setPosition(23/180.0);
-            sleep(350);
-        }
-        else if (loadServo.getPosition() < 40/180.0 && runTime.milliseconds() > 350){
-            loadServo.setPosition(INITIAL_ANGLE/180.0);
+            /*if(drive.getPoseEstimate().getX() <= 66)
+                launcherOn = true;
+            else launcherOn = false;
+
+            if((turretMotor.getCurrentPosition() < UPPER_LIMIT - 15 && turretMotor.getCurrentPosition() > LOWER_LIMIT + 15) && launcherOn)
+                launcherOn = true;
+            else launcherOn = false;
+             */
+
+            List<Double> wheelVelocities = drive.getWheelVelocities();
+
+            double speedAvg = (Math.abs(wheelVelocities.get(0)) + Math.abs(wheelVelocities.get(1)) + Math.abs(wheelVelocities.get(2)) + Math.abs(wheelVelocities.get(3)))/4;
+
+            if(launcherOn){
+                launcherWheelMotor.setVelocity(velocity);
+            }
+            else if(!launcherOn){
+                launcherWheelMotor.setVelocity(0);
+            }
+
+            if(getLogs){
+                telemetry.addData("~~~~~~~~~~~~ Launcher ~~~~~~~~~~~~ ", "");
+                telemetry.addData("Launcher velocity: ", launcherWheelMotor.getVelocity());
+                telemetry.addData("Wheel average velocity: ", speedAvg);
+                telemetry.addData("~~~~~~~~~~~~ Launcher ~~~~~~~~~~~~", "");
+            }
         }
 
-        if(getLogs){
-            telemetry.addData("Load servo position ", loadServo.getPosition());
-        }
-    }
+        public void loadRing(boolean getLogs){
 
-    public void collectorRun(boolean getLogs){
+            if(gamepad1.x && loadServo.getPosition() > 40/180.0/* && launcherWheelMotor.getVelocity() >= velocity - 300*/){
+                runTime.reset();
+                loadServo.setPosition(23/180.0);
+                sleep(350);
+            }
+            else if (loadServo.getPosition() < 40/180.0 && runTime.milliseconds() > 350){
+                loadServo.setPosition(INITIAL_ANGLE/180.0);
+            }
 
-        if(gamepad1.a && collectorMotor.getPower() == 0){
-            collectorMotor.setPower(1);
-            sleep(200);
-        }
-        else if(gamepad1.a && collectorMotor.getPower() == 1){
-            collectorMotor.setPower(-1);
-            sleep(200);
-        }
-        else if(gamepad1.a && collectorMotor.getPower() != 0){
-            collectorMotor.setPower(0);
-            sleep(200);
+            if(getLogs){
+                telemetry.addData("Load servo position ", loadServo.getPosition());
+            }
         }
 
-        if(getLogs){
-            telemetry.addData("Collector power ", collectorMotor.getPower());
+        public void collectorRun(boolean getLogs){
+
+            if(gamepad1.a && collectorMotor.getPower() == 0){
+                collectorMotor.setPower(1);
+                sleep(200);
+            }
+            else if(gamepad1.a && collectorMotor.getPower() == 1){
+                collectorMotor.setPower(-1);
+                sleep(200);
+            }
+            else if(gamepad1.a && collectorMotor.getPower() != 0){
+                collectorMotor.setPower(0);
+                sleep(200);
+            }
+
+            if(getLogs){
+                telemetry.addData("Collector power ", collectorMotor.getPower());
+            }
         }
     }
 
