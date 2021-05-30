@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.main.driving;
 
-import android.graphics.Camera;
-
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -11,10 +11,6 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.ClassFactory;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
-import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 
@@ -25,12 +21,20 @@ import java.util.List;
 
 public class Test_NoLift extends LinearOpMode {
 
+    public double CurrentVelocity;
+    public double velocity;
+    public double turretAngle;
     /*int viteza = 0;
     double power = 0.8;
     double halfPower = 0.5;
     */
 
+
+    FtcDashboard dashboard = FtcDashboard.getInstance();
+
     ElapsedTime runTime = new ElapsedTime();
+
+
 
     static final double INITIAL_ANGLE = 45;
     static final String COLLECTOR_MOTOR = "collector";
@@ -45,13 +49,16 @@ public class Test_NoLift extends LinearOpMode {
     static final int LOWER_LIMIT = -530;
     static final int UPPER_LIMIT = 330;
 
+
+
+
     private GeneralInitImpl init = new GeneralInitImpl();
     private Robot robot = new Robot();
 
     private DcMotor frontLeft, frontRight, backLeft, backRight;
     List<DcMotor> driveMotors = new ArrayList<>();
 
-    private DcMotor turretMotor;
+    private DcMotorEx turretMotor;
     //Turret motor hard limits: -572 , 370
     private DcMotorEx launcherWheelMotor, collectorMotor;
     private DcMotor armWobble;
@@ -62,6 +69,8 @@ public class Test_NoLift extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
+
+        dashboard.setTelemetryTransmissionInterval(25);
 
 
 
@@ -78,7 +87,7 @@ public class Test_NoLift extends LinearOpMode {
         armWobble.setDirection(DcMotorSimple.Direction.REVERSE);
         armWobble.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        turretMotor = hardwareMap.dcMotor.get(TURRET_MOTOR);
+        turretMotor = hardwareMap.get(DcMotorEx.class, TURRET_MOTOR);
         turretMotor.setPower(0);
         turretMotor.setTargetPosition(0);
         turretMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -92,9 +101,8 @@ public class Test_NoLift extends LinearOpMode {
                 DcMotor.ZeroPowerBehavior.FLOAT,
                 DcMotorSimple.Direction.FORWARD,
                 DcMotor.RunMode.RUN_USING_ENCODER);
-        launcherWheelMotor.setVelocityPIDFCoefficients(700, 0.7,130, 5);
-
-
+        launcherWheelMotor.setVelocityPIDFCoefficients(DashboardConfig.kP, DashboardConfig.kI, DashboardConfig.kD, DashboardConfig.kF);
+        //pi:50, ii = 0.7, di = 100, fi = 5
 
         armServo = init.initServo(hardwareMap,
                 "arm",
@@ -112,6 +120,8 @@ public class Test_NoLift extends LinearOpMode {
                 DcMotor.ZeroPowerBehavior.BRAKE,
                 DcMotorSimple.Direction.REVERSE,
                 DcMotor.RunMode.RUN_USING_ENCODER);
+
+        turretMotor.setVelocityPIDFCoefficients(DashboardConfig.t_kP, DashboardConfig.t_kI, DashboardConfig.t_kD, DashboardConfig.t_kF);
 
         /*driveMotors = new WheelMotors().initWheels(hardwareMap,
                 DcMotor.ZeroPowerBehavior.BRAKE,
@@ -134,6 +144,17 @@ public class Test_NoLift extends LinearOpMode {
         }
 
         while(opModeIsActive()) {
+            TelemetryPacket packet = new TelemetryPacket();
+            dashboard.setTelemetryTransmissionInterval(25);
+
+
+            packet.put("Target Velocity: ", velocity);
+            packet.put("Current Velocity: ", CurrentVelocity);
+            packet.put("Target Angle: ", turretAngle);
+            packet.put("Current Angle: ", turretMotor.getCurrentPosition()/TICKS_PER_DEGREE);
+
+            dashboard.sendTelemetryPacket(packet);
+
             drive.setWeightedDrivePower(
                     new Pose2d(
                             -gamepad1.left_stick_y,
@@ -165,11 +186,11 @@ public class Test_NoLift extends LinearOpMode {
 
         private boolean turretOn = false;
         private double dist;
-        private double velocity;
+
 
         private double log;
         private double heading;
-        private double turretAngle;
+
 
         boolean launcherOn = false;
 
@@ -262,15 +283,15 @@ public class Test_NoLift extends LinearOpMode {
                 else if(turretAngle*TICKS_PER_DEGREE < LOWER_LIMIT)
                     turretMotor.setTargetPosition(LOWER_LIMIT + 10);
                 else turretMotor.setTargetPosition((int)(turretAngle*TICKS_PER_DEGREE));
-                turretMotor.setPower(0.5);
+                turretMotor.setVelocity(DashboardConfig.t_velocity);
             }
 
             else if(!turretOn) {
-                turretMotor.setPower(0);
+                turretMotor.setVelocity(0);
             }
 
             if(turretMotor.getCurrentPosition() >= 400 || turretMotor.getCurrentPosition() <= -600) {
-                turretMotor.setPower(0);
+                turretMotor.setVelocity(0);
             }
 
             /*if(gamepad2.x){
@@ -279,9 +300,6 @@ public class Test_NoLift extends LinearOpMode {
                 turretOn = false;
                 sleep(200);
             }*/
-
-            if(!turretMotor.isBusy())
-                turretMotor.setPower(0);
 
             if(getLogs) {
                 telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "");
@@ -297,6 +315,8 @@ public class Test_NoLift extends LinearOpMode {
                 telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "end ");
             }
         }
+
+
 
         public void launcherRun(boolean getLogs){
             if (dist<=93)
@@ -331,8 +351,9 @@ public class Test_NoLift extends LinearOpMode {
             }
 
             if(getLogs){
+                CurrentVelocity = launcherWheelMotor.getVelocity();
                 telemetry.addData("~~~~~~~~~~~~ Launcher ~~~~~~~~~~~~ ", "");
-                telemetry.addData("Launcher velocity: ", launcherWheelMotor.getVelocity());
+                telemetry.addData("Launcher velocity: ", CurrentVelocity);
                 telemetry.addData("Wheel average velocity: ", speedAvg);
                 telemetry.addData("~~~~~~~~~~~~ Launcher ~~~~~~~~~~~~", "");
             }

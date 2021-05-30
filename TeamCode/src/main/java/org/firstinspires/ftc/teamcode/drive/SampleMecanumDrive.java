@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.drive;
 
 import androidx.annotation.NonNull;
-
+import org.firstinspires.ftc.teamcode.main.driving.Test_NoLift;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.canvas.Canvas;
 import com.acmerobotics.dashboard.config.Config;
@@ -35,8 +35,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigurationType;
+import com.qualcomm.robotcore.hardware.usb.RobotUsbManagerCombining;
+import com.qualcomm.robotcore.robot.Robot;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.teamcode.main.driving.DashboardConfig;
 import org.firstinspires.ftc.teamcode.util.AxesSigns;
 import org.firstinspires.ftc.teamcode.util.BNO055IMUUtil;
 import org.firstinspires.ftc.teamcode.util.DashboardUtil;
@@ -66,7 +69,7 @@ import static org.firstinspires.ftc.teamcode.drive.DriveConstants.kV;
 @Config
 public class SampleMecanumDrive extends MecanumDrive {
     public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(2.5, 0, 0);
-    public static PIDCoefficients HEADING_PID = new PIDCoefficients(2, 0, 2);
+    public static PIDCoefficients HEADING_PID = new PIDCoefficients(9.5, 0, 0);
 
     public static double LATERAL_MULTIPLIER = 1;
 
@@ -249,15 +252,19 @@ public class SampleMecanumDrive extends MecanumDrive {
         TelemetryPacket packet = new TelemetryPacket();
         Canvas fieldOverlay = packet.fieldOverlay();
 
-        packet.put("mode", mode);
+//        packet.put("mode", mode);
+//
+//        packet.put("x", currentPose.getX());
+//        packet.put("y", currentPose.getY());
+//        packet.put("heading (deg)", Math.toDegrees(currentPose.getHeading()));
+//
+//        packet.put("xError", lastError.getX());
+//        packet.put("yError", lastError.getY());
+//        packet.put("headingError (deg)", Math.toDegrees(lastError.getHeading()));
 
-        packet.put("x", currentPose.getX());
-        packet.put("y", currentPose.getY());
-        packet.put("heading (deg)", Math.toDegrees(currentPose.getHeading()));
+        //rasky
 
-        packet.put("xError", lastError.getX());
-        packet.put("yError", lastError.getY());
-        packet.put("headingError (deg)", Math.toDegrees(lastError.getHeading()));
+        //rasky
 
         switch (mode) {
             case IDLE:
@@ -318,7 +325,7 @@ public class SampleMecanumDrive extends MecanumDrive {
         fieldOverlay.setStroke("#3F51B5");
         DashboardUtil.drawRobot(fieldOverlay, currentPose);
 
-        dashboard.sendTelemetryPacket(packet);
+        //dashboard.sendTelemetryPacket(packet);
     }
 
     public void waitForIdle() {
