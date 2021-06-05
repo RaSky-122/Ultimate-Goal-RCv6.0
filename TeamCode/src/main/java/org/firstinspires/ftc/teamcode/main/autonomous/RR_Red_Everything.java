@@ -17,6 +17,10 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.*;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
@@ -32,6 +36,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 @Autonomous(name = "RR Auton", group = "main")
 public class RR_Red_Everything extends LinearOpMode {
@@ -110,7 +115,7 @@ public class RR_Red_Everything extends LinearOpMode {
                 DcMotor.ZeroPowerBehavior.FLOAT,
                 DcMotorSimple.Direction.FORWARD,
                 DcMotor.RunMode.RUN_USING_ENCODER);
-        launcherWheelMotor.setVelocityPIDFCoefficients(400, 0.8,50, 3);
+        launcherWheelMotor.setVelocityPIDFCoefficients(400, 0.8,35, 3);
 
         collectorMotor = init.initExMotor(hardwareMap,
                 COLLECTOR_MOTOR,
@@ -197,16 +202,17 @@ public class RR_Red_Everything extends LinearOpMode {
 //        while (!gamepad1.b)
 //            loadRing(false);
 
-        if(nrDiscs != 0)
-            launcherRun(DashboardConfig.l_velocity, true);
-        else launcherRun(DashboardConfig.l_velocity - 10, true);
+        if (nrDiscs == 1)
+            launcherRun(1745, true);
+        else if (nrDiscs == 0)
+            launcherRun(1725, true);
 
-        if(nrDiscs != 0)
+        if(nrDiscs == 1)
             drive.followTrajectory(traj.get(0));
         else traj.clear();
 
 
-        if (nrDiscs != 0) {
+        if (nrDiscs == 1) {
             turretLocalization(true);
             telemetry.addData("Putere", launcherWheelMotor.getVelocity());
             telemetry.update();
@@ -249,11 +255,9 @@ public class RR_Red_Everything extends LinearOpMode {
                     .splineToSplineHeading(new Pose2d(52, -10, Math.toRadians(-168)), Math.toRadians(180)
                     ,SampleMecanumDrive.getVelocityConstraint(DriveConstants.MAX_VEL, 5.0, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
-                    .splineToSplineHeading(new Pose2d(27, -10, Math.toRadians(-113)), Math.toRadians(180))
+                    .splineToSplineHeading(new Pose2d(27, -11, Math.toRadians(-118)), Math.toRadians(180))
                     .build());
             drive.followTrajectory(traj.get(2));
-
-            collectorMotor.setPower(0);
 
             drive.followTrajectory(drive.trajectoryBuilder(traj.get(2).end())
                     .forward(3.75)
@@ -263,9 +267,11 @@ public class RR_Red_Everything extends LinearOpMode {
             sleep(75);
             armWobble.setTargetPosition(50);
             armWobble.setPower(0.75);
-            sleep(100);
+            sleep(175);
             while (armWobble.getCurrentPosition() >= 50);
             armWobble.setPower(0);
+
+            collectorMotor.setPower(0);
 
             traj.add(drive.trajectoryBuilder(traj.get(2).end())
                     .lineToLinearHeading(new Pose2d(58, -2, Math.toRadians(0)))
@@ -341,7 +347,7 @@ public class RR_Red_Everything extends LinearOpMode {
             armWobble.setPower(0);
 
             traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .lineToLinearHeading(new Pose2d(27, -10, Math.toRadians(-113)))
+                    .lineToLinearHeading(new Pose2d(27, -10, Math.toRadians(-118)))
                     .build());
             drive.followTrajectory(traj.get(1));
 
@@ -390,6 +396,63 @@ public class RR_Red_Everything extends LinearOpMode {
                     .build());
             drive.followTrajectory(traj.get(4));
         }
+        else if (nrDiscs==4)
+        {
+            traj.add(drive.trajectoryBuilder(new Pose2d())
+                    .lineTo(new Vector2d(25, -11.5))
+                    .build());
+            launcherRun(1675, false);
+            sleep(100);
+            drive.followTrajectory(traj.get(0));
+            turretLocalization(false);
+            sleep(400);
+            loadRing(false);
+            sleep(400);
+            loadRing(false);
+            sleep(400);
+            loadRing(false);
+
+            traj.add(drive.trajectoryBuilder(traj.get(0).end())
+                    .forward(9, SampleMecanumDrive.getVelocityConstraint(3.5, DriveConstants.MAX_ANG_VEL, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+            collectorMotor.setPower(1);
+            launcherRun(1620, false);
+            drive.followTrajectory(traj.get(1));
+            turretLocalization(false);
+            sleep(1500);
+            loadRing(false);
+
+            traj.add(drive.trajectoryBuilder(traj.get(1).end())
+                    .forward(20, SampleMecanumDrive.getVelocityConstraint(5.5, DriveConstants.MAX_ANG_VEL, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+
+            launcherRun(1665, false);
+            drive.followTrajectory(traj.get(2));
+            collectorMotor.setPower(0);
+            sleep(150);
+
+            turretLocalization(false);
+            sleep(400);
+            loadRing(false);
+            sleep(400);
+            loadRing(false);
+            sleep(400);
+            loadRing(false);
+
+            launcherRun(0, false);
+        }
+
+        try {
+            FileOutputStream outputStream = new FileOutputStream("org/firstinspires/ftc/teamcode/main/FieldPos.txt");
+            DataOutputStream writer = new DataOutputStream(outputStream);
+            writer.writeDouble(drive.getPoseEstimate().getX());
+            writer.writeDouble(drive.getPoseEstimate().getY());
+            writer.writeDouble(drive.getPoseEstimate().getHeading());
+        } catch(IOException e){
+            System.out.println("Error writing to file!");
+        }
     }
 
     class Init {
@@ -406,7 +469,7 @@ public class RR_Red_Everything extends LinearOpMode {
             int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
                     "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
             TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
-            tfodParameters.minResultConfidence = (float)0.5;
+            tfodParameters.minResultConfidence = (float)0.60;
             tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
             tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_FIRST_ELEMENT, LABEL_SECOND_ELEMENT);
         }
@@ -476,34 +539,34 @@ public class RR_Red_Everything extends LinearOpMode {
 //            telemetry.update();
 //    }
 
-public void localization(){
-    double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
-    double x2 = 123, y2 = -15;
-    switch (target)
-    {
-        case 1:
-            y2 = DashboardConfig.powershot1;
-            break;
-        case 2:
-            y2 = DashboardConfig.powershot2;
-            break;
-        case 3:
-            y2 = DashboardConfig.powershot3;
-            break;
+    public void localization(){
+        double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
+        double x2 = 123, y2 = -15;
+        switch (target)
+        {
+            case 1:
+                y2 = DashboardConfig.powershot1;
+                break;
+            case 2:
+                y2 = DashboardConfig.powershot2;
+                break;
+            case 3:
+                y2 = DashboardConfig.powershot3;
+                break;
+        }
+
+        turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 113;
+        log = turretAngle;
+        heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
+
+        if (heading<=180)
+            turretAngle -= heading*1.16;
+        else
+            turretAngle += (360-heading)*1.16;
+        log = turretAngle - log;
+
+        dist = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
     }
-
-    turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 110;
-    log = turretAngle;
-    heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
-
-    if (heading<=180)
-        turretAngle -= heading*1.16;
-    else
-        turretAngle += (360-heading)*1.16;
-    log = turretAngle - log;
-
-    dist = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-}
 
     public void turretLocalization(boolean getLogs){
 

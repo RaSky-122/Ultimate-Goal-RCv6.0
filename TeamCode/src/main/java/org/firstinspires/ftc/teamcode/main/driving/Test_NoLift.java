@@ -14,8 +14,14 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 @TeleOp(name = "Driving", group = "main")
 
@@ -34,8 +40,6 @@ public class Test_NoLift extends LinearOpMode {
 
     ElapsedTime runTime = new ElapsedTime();
 
-
-
     static final double INITIAL_ANGLE = 45;
     static final String COLLECTOR_MOTOR = "collector";
     static final String LAUNCHER_MOTOR = "launcher";
@@ -48,9 +52,6 @@ public class Test_NoLift extends LinearOpMode {
 
     static final int LOWER_LIMIT = -530;
     static final int UPPER_LIMIT = 330;
-
-
-
 
     private GeneralInitImpl init = new GeneralInitImpl();
     private Robot robot = new Robot();
@@ -67,12 +68,22 @@ public class Test_NoLift extends LinearOpMode {
 
     private SampleMecanumDrive drive;
 
+
     @Override
     public void runOpMode() throws InterruptedException {
 
+        try {
+            FileInputStream posFile = new FileInputStream("org/firstinspires/ftc/teamcode/main/FieldPos.txt");
+            DataInputStream reader = new DataInputStream(posFile);
+            double x = reader.readDouble();
+            double y = reader.readDouble();
+            double heading = reader.readDouble();
+            drive.setPoseEstimate(new Pose2d(x, y, heading));
+        } catch (IOException e){
+            System.out.println("Error reading from file!!");
+        }
+
         dashboard.setTelemetryTransmissionInterval(25);
-
-
 
         drive = new SampleMecanumDrive(hardwareMap);
 
@@ -138,6 +149,11 @@ public class Test_NoLift extends LinearOpMode {
 
          */
 
+        ElapsedTime btnHold = new ElapsedTime();
+        boolean isHeld = false;
+        boolean powershot = false;
+        int target = 0;
+
         while(!opModeIsActive() && !isStopRequested()){
             telemetry.addData("Waiting for start", "");
             telemetry.update();
@@ -146,7 +162,6 @@ public class Test_NoLift extends LinearOpMode {
         while(opModeIsActive()) {
             TelemetryPacket packet = new TelemetryPacket();
             dashboard.setTelemetryTransmissionInterval(25);
-
 
             packet.put("Target Velocity: ", velocity);
             packet.put("Current Velocity: ", CurrentVelocity);
@@ -164,9 +179,32 @@ public class Test_NoLift extends LinearOpMode {
             );
             drive.update();
 
+            if(gamepad2.a) {
+                if(!isHeld){
+                    btnHold.reset();
+                    isHeld = true;
+                }
+                else if(btnHold.milliseconds() >= 350 && isHeld){
+                    isHeld = false;
+                    powershot = !powershot;
+                    target = 0;
+                }
+            }
+            else if(!gamepad2.a){
+                if(btnHold.milliseconds() <= 300 && powershot){
+                    target = (target+1)%3;
+                }
+                isHeld = false;
+            }
+
             //smoothMovement(false); /* uses gamepad1: left stick, right stick */
-            robot.localization();
-            robot.turretLocalization(true); /* uses gamepad1: dpad_up */
+            robot.posIncrementation();
+            if(!powershot) {
+                robot.localization();
+                robot.turretLocalization(true); /* uses gamepad1: dpad_up */
+            }
+            else robot.powerShots(target, true);
+
             robot.launcherRun(true); /* uses gamepad1: right trigger */
             robot.loadRing(false); /* uses gamepad1: x */
             robot.collectorRun(false); /* uses gamepad1: a */
@@ -194,6 +232,85 @@ public class Test_NoLift extends LinearOpMode {
 
         boolean launcherOn = false;
 
+        public void powerShots(int target, boolean getLogs){
+
+            double x2 = 123, y2 = -15;
+
+            telemetry.addData("Target label: ", target);
+            if(target == 0){
+                y2 = -15 + 18.110236220;
+            }
+            if(target == 1){
+                y2 = -15 + 18.110236220 + 7.48031496;
+            }
+            if(target == 2){
+                y2 += -15 + 18.110236220 + 7.48031496 + 7.48031496;
+            }
+
+            double x1 = drive.getPoseEstimate().getX();
+            double y1 = drive.getPoseEstimate().getY();
+
+            turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 110;
+            log = turretAngle;
+            heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
+
+            if (heading<=180)
+                turretAngle -= heading*1.16;
+            else
+                turretAngle += (360-heading)*1.16;
+            log = turretAngle - log;
+
+            dist = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+
+            if(turretOn) {
+                if(turretAngle*TICKS_PER_DEGREE > UPPER_LIMIT)
+                    turretMotor.setTargetPosition(UPPER_LIMIT - 10);
+                else if(turretAngle*TICKS_PER_DEGREE < LOWER_LIMIT)
+                    turretMotor.setTargetPosition(LOWER_LIMIT + 10);
+                else turretMotor.setTargetPosition((int)(turretAngle*TICKS_PER_DEGREE));
+                turretMotor.setVelocity(DashboardConfig.t_velocity);
+            }
+
+            if (getLogs)
+                turretMotor.setPower(0);
+                telemetry.addData("~~~~~~~~~~~~ Turret localization Powershot ~~~~~~~~~~~~ ", "");
+                telemetry.addData("Angle: ", turretAngle);
+                telemetry.addData("Target position: ", turretMotor.getTargetPosition());
+                telemetry.addData("Current position: ", turretMotor.getCurrentPosition());
+                telemetry.addData("Target y position: ", y2);
+                telemetry.addData("~~~~~~~~~~~~ Turret localization Powershot ~~~~~~~~~~~~ ", "end ");
+        }
+
+        public void posIncrementation(){
+
+            Pose2d position = drive.getPoseEstimate();
+
+            if(gamepad2.dpad_down) {
+                drive.setPoseEstimate(new Pose2d(
+                        position.getX(), position.getY() - 1, position.getHeading()
+                ));
+                sleep(200);
+            }
+            else if(gamepad2.dpad_up){
+                drive.setPoseEstimate(new Pose2d(
+                        position.getX(), position.getY() + 1, position.getHeading()
+                ));
+                sleep(200);
+            }
+            else if(gamepad2.dpad_left){
+                drive.setPoseEstimate(new Pose2d(
+                        position.getX() - 1, position.getY(), position.getHeading()
+                ));
+                sleep(200);
+            }
+            else if(gamepad2.dpad_right){
+                drive.setPoseEstimate(new Pose2d(
+                        position.getX() + 1, position.getY(), position.getHeading()
+                ));
+                sleep(200);
+            }
+        }
+
         public void localization(){
             double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
             double x2 = 123, y2 = -15;
@@ -213,29 +330,35 @@ public class Test_NoLift extends LinearOpMode {
         boolean armIsOn = false;
         boolean servoIsOn = false;
         int armPos = 220;
+
         public void arm() {
             if ((heading >= 160 && heading <= 200) && drive.getPoseEstimate().getX()<=20)
                 armPos = 90;
             else
-                armPos = 210;
+                armPos = 230;
 
-            if (gamepad1.b && armWobble.getCurrentPosition() <= 50) {
+            if (gamepad2.b && armWobble.getCurrentPosition() <= 50) {
                 armWobble.setTargetPosition(armPos);
                 armWobble.setPower(0.75);
                 sleep(200);
 
-            } else if (gamepad1.b && armWobble.getCurrentPosition() > 50) {
+            } else if (gamepad2.b && armWobble.getCurrentPosition() > 50) {
                 armWobble.setTargetPosition(20);
                 armWobble.setPower(0.75);
                 sleep(200);
             }
 
-            if (gamepad1.left_bumper && !servoIsOn) {
+            if(armPos == 90 && armWobble.getCurrentPosition() >= 80 && armWobble.getCurrentPosition() <= 150){
+                armServo.setPosition(1);
+                servoIsOn = false;
+            }
+
+            if (gamepad2.left_bumper && !servoIsOn) {
                 armServo.setPosition(0);
                 servoIsOn = true;
                 sleep(200);
             }
-            else if (gamepad1.left_bumper && servoIsOn)
+            else if (gamepad2.left_bumper && servoIsOn)
             {
                 armServo.setPosition(1);
                 servoIsOn = false;
@@ -272,7 +395,7 @@ public class Test_NoLift extends LinearOpMode {
 
         public void turretLocalization(boolean getLogs){
 
-            if(gamepad1.dpad_up){
+            if(gamepad2.right_bumper){
                 turretOn = !turretOn;
                 sleep(200);
             }
@@ -320,12 +443,12 @@ public class Test_NoLift extends LinearOpMode {
 
         public void launcherRun(boolean getLogs){
             if (dist<=93)
-                velocity = 1780-((dist-63.5)*3.50);
+                velocity = 1760-((dist-63.5)*3.75);
             else
-                velocity = 1700+((dist-93)*3.50);
+                velocity = 1680+((dist-93)*2.00);
             telemetry.addData("Target Velocity:", velocity);
 
-            if(gamepad1.right_trigger >= 0.7) {
+            if(gamepad2.right_trigger >= 0.7) {
                 launcherOn = !launcherOn;
                 sleep(200);
             }
@@ -361,7 +484,7 @@ public class Test_NoLift extends LinearOpMode {
 
         public void loadRing(boolean getLogs){
 
-            if(gamepad1.x && loadServo.getPosition() > 40/180.0/* && launcherWheelMotor.getVelocity() >= velocity - 300*/){
+            if(gamepad2.x && loadServo.getPosition() > 40/180.0/* && launcherWheelMotor.getVelocity() >= velocity - 300*/){
                 runTime.reset();
                 loadServo.setPosition(23/180.0);
                 sleep(350);
