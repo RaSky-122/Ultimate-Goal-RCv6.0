@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.main.autonomous;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Camera;
 
 import com.acmerobotics.roadrunner.drive.MecanumDrive;
@@ -16,12 +18,6 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.math.*;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -95,16 +91,19 @@ public class RR_Red_Everything extends LinearOpMode {
 
     private GeneralInitImpl init = new GeneralInitImpl();
 
+    private static final String PREFERENCES_FILE = "org\\firstinspires\\ftc\\teamcode\\main\\autonPos";
+
     @Override
     public void runOpMode() throws InterruptedException {
 
+        SharedPreferences preferences = hardwareMap.appContext.getSharedPreferences(PREFERENCES_FILE, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
 
         turretMotor = hardwareMap.get(DcMotorEx.class, TURRET_MOTOR);
         turretMotor.setPower(0);
         turretMotor.setTargetPosition(0);
         turretMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turretMotor.setVelocityPIDFCoefficients(DashboardConfig.t_kP, DashboardConfig.t_kI, DashboardConfig.t_kD, DashboardConfig.t_kF);
-
 
         turretMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turretMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -202,30 +201,27 @@ public class RR_Red_Everything extends LinearOpMode {
 //        while (!gamepad1.b)
 //            loadRing(false);
 
-        if (nrDiscs == 1)
-            launcherRun(1745, true);
+        if (nrDiscs != 0)
+            launcherRun(1690, true);
         else if (nrDiscs == 0)
-            launcherRun(1725, true);
+            launcherRun(1660, true);
 
-        if(nrDiscs == 1)
+        if(nrDiscs != 0)
             drive.followTrajectory(traj.get(0));
         else traj.clear();
 
 
-        if (nrDiscs == 1) {
+        if (nrDiscs != 0) {
             turretLocalization(true);
-            telemetry.addData("Putere", launcherWheelMotor.getVelocity());
             telemetry.update();
             sleep(400);
             loadRing(false);
 
-            telemetry.addData("Putere", launcherWheelMotor.getVelocity());
             telemetry.update();
             sleep(300);
             loadRing(false);
             telemetry.update();
 
-            telemetry.addData("Putere", launcherWheelMotor.getVelocity());
             telemetry.update();
             sleep(300);
             loadRing(false);
@@ -238,7 +234,7 @@ public class RR_Red_Everything extends LinearOpMode {
         if (nrDiscs == 1)
         {
             traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .lineTo(new Vector2d(85, -2))
+                    .lineTo(new Vector2d(82, -8))
                     .build());
 
             drive.followTrajectory(traj.get(1));
@@ -255,16 +251,16 @@ public class RR_Red_Everything extends LinearOpMode {
                     .splineToSplineHeading(new Pose2d(52, -10, Math.toRadians(-168)), Math.toRadians(180)
                     ,SampleMecanumDrive.getVelocityConstraint(DriveConstants.MAX_VEL, 5.0, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
-                    .splineToSplineHeading(new Pose2d(27, -11, Math.toRadians(-118)), Math.toRadians(180))
+                    .splineToSplineHeading(new Pose2d(30, -8, Math.toRadians(-117)), Math.toRadians(180))
                     .build());
             drive.followTrajectory(traj.get(2));
 
             drive.followTrajectory(drive.trajectoryBuilder(traj.get(2).end())
-                    .forward(3.75)
+                    .forward(6.25)
                     .build());
 
             armServo.setPosition(0);
-            sleep(75);
+            sleep(200);
             armWobble.setTargetPosition(50);
             armWobble.setPower(0.75);
             sleep(175);
@@ -274,7 +270,7 @@ public class RR_Red_Everything extends LinearOpMode {
             collectorMotor.setPower(0);
 
             traj.add(drive.trajectoryBuilder(traj.get(2).end())
-                    .lineToLinearHeading(new Pose2d(58, -2, Math.toRadians(0)))
+                    .lineToLinearHeading(new Pose2d(58, -8, Math.toRadians(0)))
                     .build());
             launcherRun(DashboardConfig.l_velocity, false);
 
@@ -284,7 +280,7 @@ public class RR_Red_Everything extends LinearOpMode {
             loadRing(false);
 
             traj.add(drive.trajectoryBuilder(traj.get(3).end())
-                    .forward(80 - traj.get(3).end().getX()-4.5)
+                    .forward(82.5 - traj.get(3).end().getX()-4.5)
                     .build());
 
             drive.followTrajectory(traj.get(4));
@@ -307,9 +303,14 @@ public class RR_Red_Everything extends LinearOpMode {
         }
         else if(nrDiscs == 0){
             traj.add(drive.trajectoryBuilder(new Pose2d())
-                    .lineToConstantHeading(new Vector2d(58, -30))
+                    .forward(10)
                     .build());
             drive.followTrajectory(traj.get(0));
+
+            traj.add(drive.trajectoryBuilder(traj.get(0).end())
+                    .lineToConstantHeading(new Vector2d(58, -30))
+                    .build());
+            drive.followTrajectory(traj.get(1));
 
             turretLocalization(true);
             telemetry.addData("Putere", launcherWheelMotor.getVelocity());
@@ -346,37 +347,11 @@ public class RR_Red_Everything extends LinearOpMode {
             while (armWobble.getCurrentPosition() >= 20) ;
             armWobble.setPower(0);
 
-            traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .lineToLinearHeading(new Pose2d(27, -10, Math.toRadians(-118)))
-                    .build());
-            drive.followTrajectory(traj.get(1));
-
-            armWobble.setTargetPosition(220);
-            armWobble.setPower(0.75);
-            sleep(100);
-            while (armWobble.getCurrentPosition() <= 220) ;
-            armWobble.setPower(0);
-            armServo.setPosition(1);
-
             traj.add(drive.trajectoryBuilder(traj.get(1).end())
-                    .forward(4.5)
+                    .lineToLinearHeading(new Pose2d(30, -8, Math.toRadians(-117)))
                     .build());
-            
             drive.followTrajectory(traj.get(2));
 
-            armServo.setPosition(0);
-            sleep(100);
-            armWobble.setTargetPosition(20);
-            armWobble.setPower(0.75);
-            sleep(100);
-            while (armWobble.getCurrentPosition() >= 20) ;
-            armWobble.setPower(0);
-
-            traj.add(drive.trajectoryBuilder(traj.get(2).end())
-                    .lineToLinearHeading(new Pose2d(50, -30, 0))
-                    .build());
-            drive.followTrajectory(traj.get(3));
-
             armWobble.setTargetPosition(220);
             armWobble.setPower(0.75);
             sleep(100);
@@ -384,7 +359,14 @@ public class RR_Red_Everything extends LinearOpMode {
             armWobble.setPower(0);
             armServo.setPosition(1);
 
-            sleep(100);
+            traj.add(drive.trajectoryBuilder(traj.get(2).end())
+                    .forward(10)
+                    .build());
+            
+            drive.followTrajectory(traj.get(3));
+
+            armServo.setPosition(0);
+            sleep(200);
             armWobble.setTargetPosition(20);
             armWobble.setPower(0.75);
             sleep(100);
@@ -392,67 +374,134 @@ public class RR_Red_Everything extends LinearOpMode {
             armWobble.setPower(0);
 
             traj.add(drive.trajectoryBuilder(traj.get(3).end())
-                    .lineToLinearHeading(new Pose2d(70, -15, Math.toRadians(45)))
+                    .lineToLinearHeading(new Pose2d(50, -30, 0))
                     .build());
             drive.followTrajectory(traj.get(4));
+
+            armWobble.setTargetPosition(220);
+            armWobble.setPower(0.75);
+            sleep(100);
+            while (armWobble.getCurrentPosition() <= 220) ;
+            armWobble.setPower(0);
+            armServo.setPosition(1);
+
+            sleep(100);
+            armWobble.setTargetPosition(20);
+            armWobble.setPower(0.75);
+            sleep(100);
+            while (armWobble.getCurrentPosition() >= 20) ;
+            armWobble.setPower(0);
+
+            traj.add(drive.trajectoryBuilder(traj.get(4).end())
+                    .lineToLinearHeading(new Pose2d(65, -15, Math.toRadians(45)))
+                    .build());
+            drive.followTrajectory(traj.get(5));
         }
         else if (nrDiscs==4)
         {
-            traj.add(drive.trajectoryBuilder(new Pose2d())
-                    .lineTo(new Vector2d(25, -11.5))
-                    .build());
-            launcherRun(1675, false);
-            sleep(100);
-            drive.followTrajectory(traj.get(0));
-            turretLocalization(false);
-            sleep(400);
-            loadRing(false);
-            sleep(400);
-            loadRing(false);
-            sleep(400);
-            loadRing(false);
-
             traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .forward(9, SampleMecanumDrive.getVelocityConstraint(3.5, DriveConstants.MAX_ANG_VEL, DriveConstants.TRACK_WIDTH),
+                    .lineTo(new Vector2d(104, -26.5), SampleMecanumDrive.getVelocityConstraint(42, 4, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
                     .build());
-            collectorMotor.setPower(1);
-            launcherRun(1620, false);
+            //98.5 -21.5
+
             drive.followTrajectory(traj.get(1));
-            turretLocalization(false);
-            sleep(1500);
-            loadRing(false);
+
+            armWobble.setTargetPosition(220);
+            armWobble.setPower(1);
+            sleep(100);
+            while (armWobble.getCurrentPosition() <= 220) ;
+            armWobble.setPower(0);
+            armServo.setPosition(1);
 
             traj.add(drive.trajectoryBuilder(traj.get(1).end())
-                    .forward(20, SampleMecanumDrive.getVelocityConstraint(5.5, DriveConstants.MAX_ANG_VEL, DriveConstants.TRACK_WIDTH),
+                    .lineToLinearHeading(new Pose2d(19.5, -34.25, Math.toRadians(180)), SampleMecanumDrive.getVelocityConstraint(40, 6, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
                     .build());
-
-            launcherRun(1665, false);
             drive.followTrajectory(traj.get(2));
-            collectorMotor.setPower(0);
-            sleep(150);
+
+            armWobble.setTargetPosition(220);
+            armWobble.setPower(1);
+            sleep(100);
+            while (armWobble.getCurrentPosition() <= 220) ;
+            armWobble.setPower(0);
+            armServo.setPosition(0);
+            sleep(200);
+
+            traj.add(drive.trajectoryBuilder(traj.get(2).end())
+                    .lineToLinearHeading(new Pose2d(12.5, -13.25, 0), SampleMecanumDrive.getVelocityConstraint(40, 4, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+            drive.followTrajectory(traj.get(3));
+
+            launcherRun(1626, false);
+            collectorMotor.setPower(1);
+            traj.add(drive.trajectoryBuilder(traj.get(3).end())
+                    .forward(18.5, SampleMecanumDrive.getVelocityConstraint(13, 4, DriveConstants.TRACK_WIDTH),
+                    SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+            drive.followTrajectory(traj.get(4));
 
             turretLocalization(false);
-            sleep(400);
+            armWobble.setTargetPosition(20);
+            armWobble.setPower(0.75);
+            sleep(100);
+            while (armWobble.getCurrentPosition() >= 20) ;
+            armWobble.setPower(0);
+            sleep(300);
             loadRing(false);
-            sleep(400);
-            loadRing(false);
-            sleep(400);
+            sleep(300);
             loadRing(false);
 
-            launcherRun(0, false);
+            traj.add(drive.trajectoryBuilder(traj.get(4).end())
+                    .forward(16, SampleMecanumDrive.getVelocityConstraint(13, 4, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .forward(2, SampleMecanumDrive.getVelocityConstraint(20, 4, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+            launcherRun(1626, false);
+            drive.followTrajectory(traj.get(5));
+
+            target = 4;
+            turretLocalization(false);
+            sleep(300);
+            loadRing(false);
+            sleep(300);
+            loadRing(false);
+            sleep(300);
+            loadRing(false);
+            collectorMotor.setPower(0);
+            traj.add(drive.trajectoryBuilder(traj.get(5).end())
+                    .lineTo(new Vector2d(88, -26.5))
+                    .build());
+            drive.followTrajectory(traj.get(6));
+
+            armWobble.setTargetPosition(220);
+            armWobble.setPower(1);
+            sleep(100);
+            while (armWobble.getCurrentPosition() <= 220) ;
+            armWobble.setPower(0);
+            armServo.setPosition(1);
+
+            traj.add(drive.trajectoryBuilder(traj.get(6).end(), true)
+                    .lineTo(new Vector2d(71, -26.5), SampleMecanumDrive.getVelocityConstraint(43, 4, DriveConstants.TRACK_WIDTH),
+                            SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
+                    .build());
+            drive.followTrajectory(traj.get(7));
+
+
         }
 
-        try {
-            FileOutputStream outputStream = new FileOutputStream("org/firstinspires/ftc/teamcode/main/FieldPos.txt");
-            DataOutputStream writer = new DataOutputStream(outputStream);
-            writer.writeDouble(drive.getPoseEstimate().getX());
-            writer.writeDouble(drive.getPoseEstimate().getY());
-            writer.writeDouble(drive.getPoseEstimate().getHeading());
-        } catch(IOException e){
-            System.out.println("Error writing to file!");
-        }
+        turretMotor.setVelocity(0);
+        turretMotor.setTargetPosition(0);
+        turretMotor.setVelocity(DashboardConfig.t_velocity);
+        while(turretMotor.getCurrentPosition() >= 10 || turretMotor.getCurrentPosition() <= -10);
+        turretMotor.setVelocity(0);
+
+        editor.putFloat("x", (float)drive.getPoseEstimate().getX());
+        editor.putFloat("y", (float)drive.getPoseEstimate().getY());
+        editor.putFloat("heading", (float)drive.getPoseEstimate().getHeading());
+        editor.apply();
     }
 
     class Init {
@@ -538,7 +587,7 @@ public class RR_Red_Everything extends LinearOpMode {
 //            telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "end ");
 //            telemetry.update();
 //    }
-
+    double offset = 112;
     public void localization(){
         double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
         double x2 = 123, y2 = -15;
@@ -553,9 +602,12 @@ public class RR_Red_Everything extends LinearOpMode {
             case 3:
                 y2 = DashboardConfig.powershot3;
                 break;
+            case 4:
+                offset = 109;
+                break;
         }
 
-        turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - 113;
+        turretAngle = Math.toDegrees(Math.atan2(x1 - x2, (y1-y2))) * (-1) - offset;
         log = turretAngle;
         heading = drive.getPoseEstimate().getHeading()*180/Math.PI;
 

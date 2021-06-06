@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.main.driving;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
@@ -14,14 +17,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 
-import java.io.DataInput;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 @TeleOp(name = "Driving", group = "main")
 
@@ -68,31 +65,31 @@ public class Test_NoLift extends LinearOpMode {
 
     private SampleMecanumDrive drive;
 
+    private static final String PREFERENCES_FILE = "org\\firstinspires\\ftc\\teamcode\\main\\autonPos";
 
     @Override
     public void runOpMode() throws InterruptedException {
 
-        try {
-            FileInputStream posFile = new FileInputStream("org/firstinspires/ftc/teamcode/main/FieldPos.txt");
-            DataInputStream reader = new DataInputStream(posFile);
-            double x = reader.readDouble();
-            double y = reader.readDouble();
-            double heading = reader.readDouble();
-            drive.setPoseEstimate(new Pose2d(x, y, heading));
-        } catch (IOException e){
-            System.out.println("Error reading from file!!");
-        }
+        SharedPreferences preferences = hardwareMap.appContext.getSharedPreferences(PREFERENCES_FILE, Context.MODE_PRIVATE);
+        double x = preferences.getFloat("x", 0);
+        double y = preferences.getFloat("y", 0);
+        double heading = preferences.getFloat("heading", 0);
+
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.clear();
+        editor.apply();
 
         dashboard.setTelemetryTransmissionInterval(25);
 
         drive = new SampleMecanumDrive(hardwareMap);
+
+        drive.setPoseEstimate(new Pose2d(x, y, heading));
 
         //imu = new Gyroscope().initIMU(hardwareMap);
 
         armWobble = hardwareMap.dcMotor.get("arm");
         armWobble.setPower(0);
         armWobble.setTargetPosition(0);
-        armWobble.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         armWobble.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         armWobble.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -101,7 +98,6 @@ public class Test_NoLift extends LinearOpMode {
         turretMotor = hardwareMap.get(DcMotorEx.class, TURRET_MOTOR);
         turretMotor.setPower(0);
         turretMotor.setTargetPosition(0);
-        turretMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         turretMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turretMotor.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -134,6 +130,10 @@ public class Test_NoLift extends LinearOpMode {
 
         turretMotor.setVelocityPIDFCoefficients(DashboardConfig.t_kP, DashboardConfig.t_kI, DashboardConfig.t_kD, DashboardConfig.t_kF);
 
+        turretMotor.setTargetPosition(-220);
+        turretMotor.setVelocity(DashboardConfig.t_velocity);
+        while (turretMotor.isBusy());
+        turretMotor.setVelocity(0);
         /*driveMotors = new WheelMotors().initWheels(hardwareMap,
                 DcMotor.ZeroPowerBehavior.BRAKE,
                 DcMotorSimple.Direction.FORWARD,
@@ -212,7 +212,8 @@ public class Test_NoLift extends LinearOpMode {
             telemetry.addData("","");
             telemetry.addData("","");
             telemetry.addData("Wheel velocities", drive.getWheelVelocities());
-
+//            telemetry.addData("Encoder Y: ", collectorMotor.getCurrentPosition());
+//            telemetry.addData("Encoder X: ", backRight.getCurrentPosition());
             telemetry.update();
 
         }
@@ -237,14 +238,17 @@ public class Test_NoLift extends LinearOpMode {
             double x2 = 123, y2 = -15;
 
             telemetry.addData("Target label: ", target);
-            if(target == 0){
-                y2 = -15 + 18.110236220;
-            }
-            if(target == 1){
-                y2 = -15 + 18.110236220 + 7.48031496;
-            }
-            if(target == 2){
-                y2 += -15 + 18.110236220 + 7.48031496 + 7.48031496;
+            switch (target)
+            {
+                case 0:
+                    y2 = DashboardConfig.powershot1;
+                    break;
+                case 1:
+                    y2 = DashboardConfig.powershot2;
+                    break;
+                case 2:
+                    y2 = DashboardConfig.powershot3;
+                    break;
             }
 
             double x1 = drive.getPoseEstimate().getX();
@@ -440,7 +444,7 @@ public class Test_NoLift extends LinearOpMode {
         }
 
 
-
+        boolean ps_mode = false;
         public void launcherRun(boolean getLogs){
             if (dist<=93)
                 velocity = 1760-((dist-63.5)*3.75);
@@ -466,8 +470,21 @@ public class Test_NoLift extends LinearOpMode {
 
             double speedAvg = (Math.abs(wheelVelocities.get(0)) + Math.abs(wheelVelocities.get(1)) + Math.abs(wheelVelocities.get(2)) + Math.abs(wheelVelocities.get(3)))/4;
 
+            if (gamepad2.y && !ps_mode) {
+                ps_mode = true;
+                sleep(130);
+            }
+            else if (gamepad2.y && ps_mode) {
+                ps_mode = false;
+                sleep(130);
+            }
+
+
             if(launcherOn){
-                launcherWheelMotor.setVelocity(velocity);
+                if (ps_mode)
+                    launcherWheelMotor.setVelocity(1500);
+                else
+                    launcherWheelMotor.setVelocity(1675);
             }
             else if(!launcherOn){
                 launcherWheelMotor.setVelocity(0);
@@ -484,7 +501,7 @@ public class Test_NoLift extends LinearOpMode {
 
         public void loadRing(boolean getLogs){
 
-            if(gamepad2.x && loadServo.getPosition() > 40/180.0/* && launcherWheelMotor.getVelocity() >= velocity - 300*/){
+            if(gamepad1.x && loadServo.getPosition() > 40/180.0/* && launcherWheelMotor.getVelocity() >= velocity - 300*/){
                 runTime.reset();
                 loadServo.setPosition(23/180.0);
                 sleep(350);
