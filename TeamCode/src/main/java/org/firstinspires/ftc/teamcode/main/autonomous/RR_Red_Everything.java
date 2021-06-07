@@ -140,7 +140,7 @@ public class RR_Red_Everything extends LinearOpMode {
                 "arm",
                 Servo.Direction.FORWARD,
                 0.5, 1);
-        armServo.setPosition(0);
+        armServo.setPosition(0.4);
 
         drive = new SampleMecanumDrive(hardwareMap);
         ArrayList<Trajectory> traj = new ArrayList<>();
@@ -234,7 +234,7 @@ public class RR_Red_Everything extends LinearOpMode {
         if (nrDiscs == 1)
         {
             traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .lineTo(new Vector2d(82, -8))
+                    .lineTo(new Vector2d(80, -8))
                     .build());
 
             drive.followTrajectory(traj.get(1));
@@ -251,7 +251,7 @@ public class RR_Red_Everything extends LinearOpMode {
                     .splineToSplineHeading(new Pose2d(52, -10, Math.toRadians(-168)), Math.toRadians(180)
                     ,SampleMecanumDrive.getVelocityConstraint(DriveConstants.MAX_VEL, 5.0, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
-                    .splineToSplineHeading(new Pose2d(30, -8, Math.toRadians(-117)), Math.toRadians(180))
+                    .splineToSplineHeading(new Pose2d(30, -8, Math.toRadians(-119)), Math.toRadians(180))
                     .build());
             drive.followTrajectory(traj.get(2));
 
@@ -259,7 +259,7 @@ public class RR_Red_Everything extends LinearOpMode {
                     .forward(6.25)
                     .build());
 
-            armServo.setPosition(0);
+            armServo.setPosition(0.4);
             sleep(200);
             armWobble.setTargetPosition(50);
             armWobble.setPower(0.75);
@@ -280,7 +280,7 @@ public class RR_Red_Everything extends LinearOpMode {
             loadRing(false);
 
             traj.add(drive.trajectoryBuilder(traj.get(3).end())
-                    .forward(82.5 - traj.get(3).end().getX()-4.5)
+                    .forward(80 - traj.get(3).end().getX()-4.5)
                     .build());
 
             drive.followTrajectory(traj.get(4));
@@ -365,7 +365,7 @@ public class RR_Red_Everything extends LinearOpMode {
             
             drive.followTrajectory(traj.get(3));
 
-            armServo.setPosition(0);
+            armServo.setPosition(0.4);
             sleep(200);
             armWobble.setTargetPosition(20);
             armWobble.setPower(0.75);
@@ -425,7 +425,7 @@ public class RR_Red_Everything extends LinearOpMode {
             sleep(100);
             while (armWobble.getCurrentPosition() <= 220) ;
             armWobble.setPower(0);
-            armServo.setPosition(0);
+            armServo.setPosition(0.4);
             sleep(200);
 
             traj.add(drive.trajectoryBuilder(traj.get(2).end())

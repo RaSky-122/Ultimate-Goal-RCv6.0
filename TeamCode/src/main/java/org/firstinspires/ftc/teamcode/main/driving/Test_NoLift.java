@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
 
@@ -42,6 +43,7 @@ public class Test_NoLift extends LinearOpMode {
     static final String LAUNCHER_MOTOR = "launcher";
     static final String TURRET_MOTOR = "turret";
     static final String LOADING_SERVO = "loader";
+    static final String EXTENDER_SERVO = "extender";
 
     static final double TICKS_PER_DEGREE = 9.5;
     static final int MAX_DISTANCE = 124; //in inches
@@ -62,6 +64,7 @@ public class Test_NoLift extends LinearOpMode {
     private DcMotor armWobble;
     private Servo armServo;
     private Servo loadServo;
+    private Servo extenderServo;
 
     private SampleMecanumDrive drive;
 
@@ -86,6 +89,11 @@ public class Test_NoLift extends LinearOpMode {
         drive.setPoseEstimate(new Pose2d(x, y, heading));
 
         //imu = new Gyroscope().initIMU(hardwareMap);
+
+        extenderServo = init.initServo(hardwareMap,
+                EXTENDER_SERVO,
+                Servo.Direction.FORWARD,
+                0, 0.3);
 
         armWobble = hardwareMap.dcMotor.get("arm");
         armWobble.setPower(0);
@@ -114,7 +122,7 @@ public class Test_NoLift extends LinearOpMode {
         armServo = init.initServo(hardwareMap,
                 "arm",
                 Servo.Direction.FORWARD,
-                0.5, 1);
+                0.4, 1);
         armServo.setPosition(1);
 
         loadServo = init.initServo(hardwareMap,
@@ -198,6 +206,14 @@ public class Test_NoLift extends LinearOpMode {
             }
 
             //smoothMovement(false); /* uses gamepad1: left stick, right stick */
+
+            if(gamepad2.a){
+                if(DriveConstants.MAX_VEL > 30)
+                    DriveConstants.MAX_VEL = 15;
+                else DriveConstants.MAX_VEL = 38.110287416570166;
+                sleep(200);
+            }
+
             robot.posIncrementation();
             if(!powershot) {
                 robot.localization();
@@ -205,6 +221,9 @@ public class Test_NoLift extends LinearOpMode {
             }
             else robot.powerShots(target, true);
 
+            telemetry.addData("MAX VEL: ", DriveConstants.MAX_VEL);
+
+            robot.extendServo(false);
             robot.launcherRun(true); /* uses gamepad1: right trigger */
             robot.loadRing(false); /* uses gamepad1: x */
             robot.collectorRun(false); /* uses gamepad1: a */
@@ -232,6 +251,16 @@ public class Test_NoLift extends LinearOpMode {
 
 
         boolean launcherOn = false;
+
+        public void extendServo (boolean getLogs){
+
+            if(gamepad2.x){
+                if(extenderServo.getPosition() == 0)
+                    extenderServo.setPosition(1);
+                else extenderServo.setPosition(0);
+                sleep(200);
+            }
+        }
 
         public void powerShots(int target, boolean getLogs){
 
@@ -336,10 +365,6 @@ public class Test_NoLift extends LinearOpMode {
         int armPos = 220;
 
         public void arm() {
-            if ((heading >= 160 && heading <= 200) && drive.getPoseEstimate().getX()<=20)
-                armPos = 90;
-            else
-                armPos = 230;
 
             if (gamepad2.b && armWobble.getCurrentPosition() <= 50) {
                 armWobble.setTargetPosition(armPos);
@@ -352,13 +377,19 @@ public class Test_NoLift extends LinearOpMode {
                 sleep(200);
             }
 
-            if(armPos == 90 && armWobble.getCurrentPosition() >= 80 && armWobble.getCurrentPosition() <= 150){
-                armServo.setPosition(1);
-                servoIsOn = false;
+            if (gamepad2.left_trigger > 0.7 && armWobble.getCurrentPosition() <= 50) {
+                armWobble.setTargetPosition(90);
+                armWobble.setPower(0.75);
+                sleep(200);
+
+            } else if (gamepad2.left_trigger > 0.7 && armWobble.getCurrentPosition() > 50) {
+                armWobble.setTargetPosition(20);
+                armWobble.setPower(0.75);
+                sleep(200);
             }
 
             if (gamepad2.left_bumper && !servoIsOn) {
-                armServo.setPosition(0);
+                armServo.setPosition(0.4);
                 servoIsOn = true;
                 sleep(200);
             }
@@ -372,7 +403,7 @@ public class Test_NoLift extends LinearOpMode {
 
 
 //            if (armWobble.getCurrentPosition()>140 && gamepad1.left_bumper && armServo.getPosition()!=0){
-//                armServo.setPosition(0);
+//                armServo.setPosition(0.4);
 //                sleep(200);
 //            }
 //
@@ -482,7 +513,7 @@ public class Test_NoLift extends LinearOpMode {
 
             if(launcherOn){
                 if (ps_mode)
-                    launcherWheelMotor.setVelocity(1500);
+                    launcherWheelMotor.setVelocity(1570);
                 else
                     launcherWheelMotor.setVelocity(1675);
             }
