@@ -14,9 +14,14 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.apache.commons.math3.distribution.TDistribution;
 import org.firstinspires.ftc.teamcode.drive.DriveConstants;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
 import org.firstinspires.ftc.teamcode.libraries.implementations.GeneralInitImpl;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +37,7 @@ public class Test_NoLift extends LinearOpMode {
     double power = 0.8;
     double halfPower = 0.5;
     */
+    private DistanceSensor sensor_range;
 
 
     FtcDashboard dashboard = FtcDashboard.getInstance();
@@ -77,6 +83,8 @@ public class Test_NoLift extends LinearOpMode {
         double x = preferences.getFloat("x", 0);
         double y = preferences.getFloat("y", 0);
         double heading = preferences.getFloat("heading", 0);
+
+        sensor_range = hardwareMap.get(DistanceSensor.class, "sensor");
 
         SharedPreferences.Editor editor = preferences.edit();
         editor.clear();
@@ -231,6 +239,8 @@ public class Test_NoLift extends LinearOpMode {
             telemetry.addData("","");
             telemetry.addData("","");
             telemetry.addData("Wheel velocities", drive.getWheelVelocities());
+            telemetry.addData("Sensor distance: ", sensor_range.getDistance(DistanceUnit.CM));
+            telemetry.addData("Sensor distance: ", sensor_range.getDistance(DistanceUnit.MM));
 //            telemetry.addData("Encoder Y: ", collectorMotor.getCurrentPosition());
 //            telemetry.addData("Encoder X: ", backRight.getCurrentPosition());
             telemetry.update();
@@ -513,9 +523,9 @@ public class Test_NoLift extends LinearOpMode {
 
             if(launcherOn){
                 if (ps_mode)
-                    launcherWheelMotor.setVelocity(1570);
+                    launcherWheelMotor.setVelocity(1540);
                 else
-                    launcherWheelMotor.setVelocity(1675);
+                    launcherWheelMotor.setVelocity(1655);
             }
             else if(!launcherOn){
                 launcherWheelMotor.setVelocity(0);

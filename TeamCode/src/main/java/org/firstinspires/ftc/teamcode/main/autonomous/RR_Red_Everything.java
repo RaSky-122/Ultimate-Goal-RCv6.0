@@ -1,3 +1,5 @@
+
+
 package org.firstinspires.ftc.teamcode.main.autonomous;
 
 import android.content.Context;
@@ -58,7 +60,7 @@ public class RR_Red_Everything extends LinearOpMode {
     private static final String TFOD_MODEL_ASSET = "UltimateGoal.tflite";
     private static final String LABEL_FIRST_ELEMENT = "Quad";
     private static final String LABEL_SECOND_ELEMENT = "Single";
-
+    static int nrDiscs;
     //~~~~~~~~~~~~~~~~~~~ W E B C A M ~~~~~~~~~~~~~~~~~~~~~
 
     ElapsedTime runTime = new ElapsedTime();
@@ -86,7 +88,7 @@ public class RR_Red_Everything extends LinearOpMode {
     int target = 0;
     private double log;
     private double heading;
-
+    public double offset = 112;
     private SampleMecanumDrive drive;
 
     private GeneralInitImpl init = new GeneralInitImpl();
@@ -176,7 +178,7 @@ public class RR_Red_Everything extends LinearOpMode {
 
         waitForStart();
 
-        int nrDiscs = discArrangement();
+        nrDiscs = discArrangement();
 
         if (isStopRequested()) return;
 
@@ -202,7 +204,7 @@ public class RR_Red_Everything extends LinearOpMode {
 //            loadRing(false);
 
         if (nrDiscs != 0)
-            launcherRun(1690, true);
+            launcherRun(1710, true);
         else if (nrDiscs == 0)
             launcherRun(1660, true);
 
@@ -210,6 +212,8 @@ public class RR_Red_Everything extends LinearOpMode {
             drive.followTrajectory(traj.get(0));
         else traj.clear();
 
+        if (nrDiscs==1)
+            offset = 108.5;
 
         if (nrDiscs != 0) {
             turretLocalization(true);
@@ -223,7 +227,9 @@ public class RR_Red_Everything extends LinearOpMode {
             telemetry.update();
 
             telemetry.update();
-            sleep(300);
+            if (nrDiscs==1)
+                sleep(200);
+            sleep(350);
             loadRing(false);
             telemetry.update();
 
@@ -234,7 +240,7 @@ public class RR_Red_Everything extends LinearOpMode {
         if (nrDiscs == 1)
         {
             traj.add(drive.trajectoryBuilder(traj.get(0).end())
-                    .lineTo(new Vector2d(80, -8))
+                    .lineTo(new Vector2d(82, -8))
                     .build());
 
             drive.followTrajectory(traj.get(1));
@@ -272,15 +278,16 @@ public class RR_Red_Everything extends LinearOpMode {
             traj.add(drive.trajectoryBuilder(traj.get(2).end())
                     .lineToLinearHeading(new Pose2d(58, -8, Math.toRadians(0)))
                     .build());
-            launcherRun(DashboardConfig.l_velocity, false);
+            launcherRun(1698, false);
 
             drive.followTrajectory(traj.get(3));
-
+            offset = 112;
             turretLocalization(false);
+            sleep(300);
             loadRing(false);
 
             traj.add(drive.trajectoryBuilder(traj.get(3).end())
-                    .forward(80 - traj.get(3).end().getX()-4.5)
+                    .forward(84 - traj.get(3).end().getX()-4.5)
                     .build());
 
             drive.followTrajectory(traj.get(4));
@@ -434,7 +441,7 @@ public class RR_Red_Everything extends LinearOpMode {
                     .build());
             drive.followTrajectory(traj.get(3));
 
-            launcherRun(1626, false);
+            launcherRun(1585, false);
             collectorMotor.setPower(1);
             traj.add(drive.trajectoryBuilder(traj.get(3).end())
                     .forward(18.5, SampleMecanumDrive.getVelocityConstraint(13, 4, DriveConstants.TRACK_WIDTH),
@@ -448,7 +455,6 @@ public class RR_Red_Everything extends LinearOpMode {
             sleep(100);
             while (armWobble.getCurrentPosition() >= 20) ;
             armWobble.setPower(0);
-            sleep(300);
             loadRing(false);
             sleep(300);
             loadRing(false);
@@ -459,7 +465,7 @@ public class RR_Red_Everything extends LinearOpMode {
                     .forward(2, SampleMecanumDrive.getVelocityConstraint(20, 4, DriveConstants.TRACK_WIDTH),
                             SampleMecanumDrive.getAccelerationConstraint(DriveConstants.MAX_ACCEL))
                     .build());
-            launcherRun(1626, false);
+            launcherRun(1636, false);
             drive.followTrajectory(traj.get(5));
 
             target = 4;
@@ -547,7 +553,7 @@ public class RR_Red_Everything extends LinearOpMode {
 //        if(target == 2){
 //            y2 += 7.48031496;
 //        }
-//        if(target == 3){
+                                                                                                                                                //        if(target == 3){
 //            y2 += 7.48031496;
 //        }
 //
@@ -587,7 +593,6 @@ public class RR_Red_Everything extends LinearOpMode {
 //            telemetry.addData("~~~~~~~~~~~~ Turret localization ~~~~~~~~~~~~ ", "end ");
 //            telemetry.update();
 //    }
-    double offset = 112;
     public void localization(){
         double x1 = drive.getPoseEstimate().getX(), y1 = drive.getPoseEstimate().getY();
         double x2 = 123, y2 = -15;
