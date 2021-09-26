@@ -13,13 +13,9 @@ import com.qualcomm.robotcore.hardware.Servo;
 public class SingleMotor extends LinearOpMode {
 
     private DcMotorEx motor;
-    private Servo servo;
 
     @Override
     public void runOpMode() throws InterruptedException{
-
-//        servo.setDirection();
-//        servo.setPosition();
 
         motor = hardwareMap.get(DcMotorEx.class, "motor");
 
@@ -27,8 +23,6 @@ public class SingleMotor extends LinearOpMode {
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        //motor.setVelocityPIDFCoefficients(700, 0.7,130, 5);
 
         boolean velocity = false;
 

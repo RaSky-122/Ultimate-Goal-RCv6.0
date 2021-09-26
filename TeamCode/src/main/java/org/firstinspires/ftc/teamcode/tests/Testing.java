@@ -10,11 +10,12 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 @TeleOp(name = "Camera Test", group = "test")
 public class Testing extends LinearOpMode {
 
-
     @Override
     public void runOpMode() throws InterruptedException {
 
         new WebCam().initCamera(hardwareMap);
+
+
 
         while (!opModeIsActive() && !isStopRequested()){
             telemetry.addData("Test program ", "Waiting for start");
